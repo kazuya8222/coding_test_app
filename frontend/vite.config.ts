@@ -4,6 +4,15 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  css: {
+    postcss: {
+      plugins: [
+        require('postcss-nesting'),
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -17,11 +26,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true
-      },
-      '/socket.io': {
-        target: 'http://localhost:4000',
-        ws: true
       }
     }
   }
-}) 
+})
