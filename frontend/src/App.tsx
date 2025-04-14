@@ -7,6 +7,8 @@ import { Dashboard } from './components/Dashboard';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Home } from './components/Home';
 import { InterviewSession } from './components/interview/InterviewSession';
+import { ProblemList } from './components/interview/ProblemList';
+import { InterviewProblemPage } from './components/interview/InterviewProblem';
 
 const App: React.FC = () => {
   return (
@@ -23,15 +25,9 @@ const App: React.FC = () => {
                 <Dashboard />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/interview/:problemId"
-            element={
-              <ProtectedRoute>
-                <InterviewSession />
-              </ProtectedRoute>
-            }
-          />
+          />          
+          <Route path="/problems" element={<ProblemList />} />
+          <Route path="/interview/:problemId" element={<InterviewProblemPage />} />
         </Routes>
       </Router>
     </AuthProvider>

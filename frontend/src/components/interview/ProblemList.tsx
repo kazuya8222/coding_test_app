@@ -87,7 +87,7 @@ export const ProblemList: React.FC = () => {
           </div>
 
           <button
-            onClick={() => handleStartProblem(problem.id)}
+            onClick={() => handleStartProblem(problem._id)}
             className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-300"
           >
             問題を開始

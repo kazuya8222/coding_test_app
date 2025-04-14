@@ -1,4 +1,5 @@
 export interface InterviewProblem {
+  _id: string;
   id: string;
   domain: string; // 分野（例：アルゴリズム、システム設計など）
   category: string; // カテゴリ（例：ソート、データ構造など）
