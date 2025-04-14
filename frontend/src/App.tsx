@@ -6,6 +6,7 @@ import { RegisterForm } from './components/auth/RegisterForm';
 import { Dashboard } from './components/Dashboard';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Home } from './components/Home';
+import { InterviewSession } from './components/interview/InterviewSession';
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/interview/:problemId"
+            element={
+              <ProtectedRoute>
+                <InterviewSession />
               </ProtectedRoute>
             }
           />

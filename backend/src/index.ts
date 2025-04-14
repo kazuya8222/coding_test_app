@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
+import interviewRoutes from './routes/interview';
 
 dotenv.config();
 
@@ -19,6 +20,10 @@ mongoose.connect(process.env.MONGODB_URI!)
 
 // ルート
 app.use('/api/auth', authRoutes);
+app.use('/api/interview', interviewRoutes);
+app.get('/test', (req, res) => {
+    res.send('test OK');
+  });
 
 // エラーハンドリング
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

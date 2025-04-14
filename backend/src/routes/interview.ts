@@ -7,15 +7,8 @@ const router = express.Router();
 // 問題一覧取得
 router.get('/problems', async (req, res) => {
   try {
-    const { domain, category, difficulty, tag } = req.query;
-    
-    const filter: any = {};
-    if (domain) filter.domain = domain;
-    if (category) filter.category = category;
-    if (difficulty) filter.difficulty = difficulty;
-    if (tag) filter.tags = tag;
-
-    const problems = await InterviewProblemModel.find(filter)
+    console.log("interview routes loaded");
+    const problems = await InterviewProblemModel.find({})
       .sort({ createdAt: -1 })
       .select('-hints -expectedAnswer -followUpQuestions'); // 機密情報は除外
 
