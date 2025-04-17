@@ -26,6 +26,7 @@ export const CodeResult: React.FC<CodeResultProps> = ({ results, summary }) => {
         <h3 className="text-lg font-semibold">
           {summary.success ? '✅ 全てのテストケースに合格しました！' : '❌ テストケースに失敗しました'}
         </h3>
+        <h3>こちらに出力結果が表示されます</h3>
         <p className="mt-1">
           テストケース: {summary.passed}/{summary.total} 合格
         </p>
