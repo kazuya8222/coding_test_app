@@ -1,6 +1,6 @@
 // models/InterviewSession.ts
 import mongoose, { Document, Schema, Model, Types } from 'mongoose';
-import { IUser } from './User';
+import { IUser } from '../types/user';
 import { IProblem } from './Problem';
 import { InterviewTypeEnum } from './InterviewType';
 

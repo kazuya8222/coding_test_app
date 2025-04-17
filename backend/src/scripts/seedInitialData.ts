@@ -1,6 +1,6 @@
 // scripts/seedInitialData.ts
 import mongoose from 'mongoose';
-import User, { IUser } from '../models/User';
+import User from '../models/User';
 import InterviewType, { IInterviewType, InterviewTypeEnum } from '../models/InterviewType';
 import InterviewCategory, { IInterviewCategory } from '../models/InterviewCategory';
 import Problem from '../models/Problem';

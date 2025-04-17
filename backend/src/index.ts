@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
-import interviewRoutes from './routes/interview';
+import interviewRoutes from './routes/interviews';
+import connectDB from './config/database';
 
 dotenv.config();
 
@@ -13,17 +14,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB接続
-mongoose.connect(process.env.MONGODB_URI!)
-  .then(() => console.log('MongoDBに接続しました'))
-  .catch((err) => console.error('MongoDB接続エラー:', err));
+connectDB();
 
 // ルート
 app.use('/api/auth', authRoutes);
-app.use('/api/interview', interviewRoutes);
+app.use('/api/interviews', interviewRoutes);
 app.get('/test', (req, res) => {
-    res.send('test OK');
-  });
+  res.send('test OK');
+});
+
 
 // エラーハンドリング
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

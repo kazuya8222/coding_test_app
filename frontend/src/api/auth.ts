@@ -3,19 +3,20 @@ import { LoginCredentials, RegisterData, AuthResponse } from '../../../shared/ty
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+
 export const authApi = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await axios.post(`${API_URL}/api/auth/register`, data);
+    const response = await axios.post(`${API_URL}/auth/register`, data);
     return response.data;
   },
 
   login: async (data: LoginCredentials): Promise<AuthResponse> => {
-    const response = await axios.post(`${API_URL}/api/auth/login`, data);
+    const response = await axios.post(`${API_URL}/auth/login`, data);
     return response.data;
   },
 
   getProfile: async (token: string): Promise<AuthResponse['user']> => {
-    const response = await axios.get(`${API_URL}/api/auth/profile`, {
+    const response = await axios.get(`${API_URL}/auth/profile`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
