@@ -1,6 +1,8 @@
 import express from 'express';
 import { InterviewProblemModel } from '../models/InterviewProblem';
 import { DomainInfo } from '../../../shared/types/interview';
+import { runCode } from '../controllers/interview/runCode';
+import { chat } from '../controllers/interview/chat';
 
 const router = express.Router();
 
@@ -77,13 +79,13 @@ router.get('/domains/stats', async (req, res) => {
 
     // タグの出現頻度を計算
     const domainStats: DomainInfo[] = stats.map(stat => {
-      const tagCounts = stat.commonTags.reduce((acc: { [key: string]: number }, tag: string) => {
+      const tagCounts: Record<string, number> = stat.commonTags.reduce((acc: Record<string, number>, tag: string) => {
         acc[tag] = (acc[tag] || 0) + 1;
         return acc;
       }, {});
 
       const sortedTags = Object.entries(tagCounts)
-        .sort(([, a], [, b]) => b - a)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
         .slice(0, 5)
         .map(([tag]) => tag);
 
@@ -102,5 +104,8 @@ router.get('/domains/stats', async (req, res) => {
     res.status(500).json({ error: '統計情報の取得に失敗しました' });
   }
 });
+
+router.post('/run-code', runCode);
+router.post('/chat', chat);
 
 export default router; 

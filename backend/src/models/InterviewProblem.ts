@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 import { InterviewProblem } from '../../../shared/types/interview';
 
+interface TestCase {
+  input: any;
+  expectedOutput: any;
+}
+
 const interviewProblemSchema = new mongoose.Schema<InterviewProblem>({
   domain: {
     type: String,
@@ -46,6 +51,10 @@ const interviewProblemSchema = new mongoose.Schema<InterviewProblem>({
   tags: [{
     type: String,
     trim: true
+  }],
+  testCases: [{
+    input: { type: mongoose.Schema.Types.Mixed, required: true },
+    expectedOutput: { type: mongoose.Schema.Types.Mixed, required: true }
   }],
   hints: [{
     type: String,
