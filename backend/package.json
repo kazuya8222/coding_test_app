@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "seed": "ts-node scripts/seedData.ts",
+    "create-indexes": "ts-node scripts/createIndexes.ts",
+    "setup-db": "npm run seed && npm run create-indexes",
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
