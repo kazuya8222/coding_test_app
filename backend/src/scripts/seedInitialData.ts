@@ -1,11 +1,12 @@
 // scripts/seedInitialData.ts
 import mongoose from 'mongoose';
-import User from '../models/User';
+import User, { IUser } from '../models/User';
 import InterviewType, { IInterviewType, InterviewTypeEnum } from '../models/InterviewType';
 import InterviewCategory, { IInterviewCategory } from '../models/InterviewCategory';
 import Problem from '../models/Problem';
 import connectDB from '../config/database';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -24,8 +25,8 @@ const seedData = async (): Promise<void> => {
       await InterviewType.deleteMany({});
       await InterviewCategory.deleteMany({});
       await Problem.deleteMany({});
-      // ユーザーデータは注意して扱う
-      // await User.deleteMany({});
+      // ユーザーデータは注意して扱う - 開発環境でも管理者は残す
+      await User.deleteMany({ role: 'user' });
       
       console.log('Existing data cleared');
     }
@@ -45,18 +46,6 @@ const seedData = async (): Promise<void> => {
         description: '行動パターンやソフトスキルを評価します'
       }
     ]);
-    
-    console.log('Problems created');
-    
-    console.log('Database seeded successfully');
-    process.exit(0);
-  } catch (error) {
-    console.error('Error seeding database:', error);
-    process.exit(1);
-  }
-};
-
-seedData();
     
     console.log('Interview types created');
     
@@ -254,3 +243,138 @@ seedData();
           '結果志向'
         ]
       }
+    ]);
+    
+    console.log('Problems created');
+    
+    // サンプルユーザーの作成
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash('password123', salt);
+    
+    const users = await User.insertMany([
+      {
+        email: 'admin@example.com',
+        password_hash: password_hash,
+        name: '管理者',
+        role: 'admin',
+        profile: {
+          experience_level: 'senior',
+          preferred_languages: ['JavaScript', 'TypeScript', 'Python'],
+          job_title: 'サービス管理者',
+          bio: 'システム管理者でありエンジニアリング教育経験者',
+          target_companies: ['Google', 'Amazon', 'Microsoft']
+        },
+        progress: {
+          current_level: 'advanced',
+          level_progress: 95,
+          total_problems_solved: 87
+        },
+        skills: [
+          {
+            name: 'JavaScript',
+            category: 'technical',
+            score: 95,
+            last_evaluated: new Date()
+          },
+          {
+            name: 'リーダーシップ',
+            category: 'soft',
+            score: 90,
+            last_evaluated: new Date()
+          }
+        ]
+      },
+      {
+        email: 'user1@example.com',
+        password_hash: password_hash,
+        name: 'サンプルユーザー1',
+        role: 'user',
+        profile: {
+          experience_level: 'junior',
+          preferred_languages: ['JavaScript', 'Python'],
+          job_title: 'フロントエンドデベロッパー',
+          bio: 'Webフロントエンド開発に興味があるエンジニア',
+          target_companies: ['Google', 'Facebook', 'Line']
+        },
+        progress: {
+          current_level: 'beginner',
+          level_progress: 45,
+          total_problems_solved: 15,
+          coding_interviews_completed: 5,
+          technical_interviews_completed: 3,
+          behavioral_interviews_completed: 2,
+          coding_avg_score: 78,
+          technical_avg_score: 65,
+          behavioral_avg_score: 72
+        },
+        skills: [
+          {
+            name: 'JavaScript',
+            category: 'technical',
+            score: 75,
+            last_evaluated: new Date()
+          },
+          {
+            name: 'コミュニケーション',
+            category: 'soft',
+            score: 68,
+            last_evaluated: new Date()
+          }
+        ]
+      },
+      {
+        email: 'user2@example.com',
+        password_hash: password_hash,
+        name: 'サンプルユーザー2',
+        role: 'user',
+        profile: {
+          experience_level: 'mid',
+          preferred_languages: ['Java', 'Kotlin', 'SQL'],
+          job_title: 'バックエンドエンジニア',
+          bio: 'データベース設計と最適化が得意なエンジニア',
+          target_companies: ['Rakuten', 'CyberAgent', 'DeNA']
+        },
+        progress: {
+          current_level: 'intermediate',
+          level_progress: 72,
+          total_problems_solved: 42,
+          coding_interviews_completed: 12,
+          technical_interviews_completed: 8,
+          behavioral_interviews_completed: 5,
+          coding_avg_score: 82,
+          technical_avg_score: 85,
+          behavioral_avg_score: 78
+        },
+        skills: [
+          {
+            name: 'Java',
+            category: 'technical',
+            score: 85,
+            last_evaluated: new Date()
+          },
+          {
+            name: 'SQL',
+            category: 'technical',
+            score: 90,
+            last_evaluated: new Date()
+          },
+          {
+            name: 'チームワーク',
+            category: 'soft',
+            score: 82,
+            last_evaluated: new Date()
+          }
+        ]
+      }
+    ]);
+    
+    console.log('Users created');
+    console.log('Database seeded successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error seeding database:', error);
+    process.exit(1);
+  }
+};
+
+seedData();
