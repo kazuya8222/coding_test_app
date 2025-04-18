@@ -2,18 +2,20 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import InterviewSession from '../models/InterviewSession';
 import { AuthRequest } from '../middleware/auth';
-import { IProblem } from 'src/models/Problem';
+import { IProblem } from '../models/Problem';
 
 // プロフィール取得
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
+    // ユーザーIDはミドルウェアで設定されている
     const user = await User.findById(req.user.userId).select('-password_hash');
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
     }
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching profile', error });
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'プロフィール取得中にエラーが発生しました', error });
   }
 };
 
@@ -21,26 +23,67 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const { name, profile } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { name, profile },
-      { new: true }
+    
+    // 更新データの検証
+    if (!name && !profile) {
+      return res.status(400).json({ message: '更新するデータがありません' });
+    }
+
+    // 更新するフィールドを準備
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    
+    // profileオブジェクトの各フィールドを更新
+    if (profile) {
+      // プロフィールのフィールドを検証
+      const validProfileFields = [
+        'bio', 'job_title', 'experience_level', 
+        'preferred_languages', 'target_companies', 'avatar_url'
+      ];
+      
+      // 有効なフィールドのみ更新対象に含める
+      for (const field of validProfileFields) {
+        if (profile[field] !== undefined) {
+          updateData[`profile.${field}`] = profile[field];
+        }
+      }
+      
+      // 経験レベルのバリデーション
+      if (profile.experience_level && 
+         !['entry', 'junior', 'mid', 'senior'].includes(profile.experience_level)) {
+        return res.status(400).json({ 
+          message: '無効な経験レベルです。entry, junior, mid, senior のいずれかを指定してください。' 
+        });
+      }
+    }
+
+    // ユーザー情報の更新
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      updateData,
+      { new: true, runValidators: true }
     ).select('-password_hash');
-    res.json(user);
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
+    }
+
+    res.json(updatedUser);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating profile', error });
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'プロフィール更新中にエラーが発生しました', error });
   }
 };
 
 // 面接履歴取得
 export const getInterviewHistory = async (req: AuthRequest, res: Response) => {
   try {
-    const interviews = await InterviewSession.find({ user_id: req.user._id })
+    const interviews = await InterviewSession.find({ user_id: req.user.userId })
       .sort({ created_at: -1 })
       .populate('problem_id');
     res.json(interviews);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching interview history', error });
+    res.status(500).json({ message: '面接履歴取得中にエラーが発生しました', error });
   }
 };
 
@@ -49,7 +92,7 @@ export const getSkillProgress = async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
     }
 
     const technicalSkills = user.skills
@@ -71,7 +114,7 @@ export const getSkillProgress = async (req: AuthRequest, res: Response) => {
       soft: softSkills
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching skill progress', error });
+    res.status(500).json({ message: 'スキル進捗取得中にエラーが発生しました', error });
   }
 };
 
@@ -80,14 +123,14 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
     }
 
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
     const recentInterviews = await InterviewSession.find({
-      user_id: req.user._id,
+      user_id: req.user.userId,
       created_at: { $gte: oneWeekAgo }
     });
 
@@ -108,14 +151,14 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching dashboard stats', error });
+    res.status(500).json({ message: 'ダッシュボード統計取得中にエラーが発生しました', error });
   }
 };
 
 // 最近のアクティビティ取得
 export const getRecentActivity = async (req: AuthRequest, res: Response) => {
   try {
-    const recentInterviews = await InterviewSession.find({ user_id: req.user._id })
+    const recentInterviews = await InterviewSession.find({ user_id: req.user.userId })
       .sort({ created_at: -1 })
       .limit(5)
       .populate<{ problem_id: IProblem }>('problem_id');
@@ -128,21 +171,21 @@ export const getRecentActivity = async (req: AuthRequest, res: Response) => {
 
     res.json(activities);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching recent activity', error });
+    res.status(500).json({ message: '最近のアクティビティ取得中にエラーが発生しました', error });
   }
 };
 
 // おすすめ面接取得
 export const getRecommendedInterviews = async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
     }
 
     // ユーザーのスキルに基づいておすすめの問題を取得
     const recommendedInterviews = await InterviewSession.find({
-      user_id: { $ne: req.user._id },
+      user_id: { $ne: req.user.userId },
       'evaluation.overall_score': { $gte: 80 }
     })
     .sort({ 'evaluation.overall_score': -1 })
@@ -151,22 +194,22 @@ export const getRecommendedInterviews = async (req: AuthRequest, res: Response) 
 
     res.json(recommendedInterviews);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching recommended interviews', error });
+    res.status(500).json({ message: 'おすすめ面接取得中にエラーが発生しました', error });
   }
 };
 
 // お気に入り面接取得
 export const getFavoriteInterviews = async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
     }
 
     // TODO: お気に入り機能の実装
     res.json([]);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching favorite interviews', error });
+    res.status(500).json({ message: 'お気に入り面接取得中にエラーが発生しました', error });
   }
 };
 
@@ -175,9 +218,9 @@ export const updateFavoriteInterviews = async (req: AuthRequest, res: Response) 
   try {
     const { interviewIds } = req.body;
     // TODO: お気に入り機能の実装
-    res.json({ message: 'Favorites updated successfully' });
+    res.json({ message: 'お気に入りを正常に更新しました' });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating favorite interviews', error });
+    res.status(500).json({ message: 'お気に入り面接更新中にエラーが発生しました', error });
   }
 };
 
@@ -193,4 +236,4 @@ const getTimeAgo = (date: Date): string => {
   if (hours > 0) return `${hours}時間前`;
   if (minutes > 0) return `${minutes}分前`;
   return 'たった今';
-}; 
+};

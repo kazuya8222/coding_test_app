@@ -1,8 +1,11 @@
+import { UserProfile } from '../frontend/src/types/user';
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: 'user' | 'admin';
+  profile: UserProfile;
   createdAt: string;
 }
 

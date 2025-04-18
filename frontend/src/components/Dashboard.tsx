@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { userApi, interviewApi } from '../api/index';
 import { InterviewType, InterviewRole, InterviewDifficulty } from '../types/interview';
@@ -8,6 +9,7 @@ import { BellIcon, SettingsIcon } from './Icons';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<InterviewType>('coding');
   const [techRole, setTechRole] = useState<InterviewRole>('frontend');
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -15,6 +17,7 @@ export const Dashboard: React.FC = () => {
   const [skillProgress, setSkillProgress] = useState<SkillProgress | null>(null);
   const [interviews, setInterviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -61,6 +64,25 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const goToProfile = () => {
+    navigate('/profile');
+    setShowUserMenu(false);
+  };
+
+  // ユーザーメニューの外側をクリックしたときに閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showUserMenu && !(event.target as Element).closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ヘッダーセクション */}
@@ -72,22 +94,42 @@ export const Dashboard: React.FC = () => {
               <button className="text-gray-600 hover:text-gray-900">
                 <BellIcon />
               </button>
-              <button className="text-gray-600 hover:text-gray-900">
+              <button 
+                className="text-gray-600 hover:text-gray-900"
+                onClick={goToProfile}
+              >
                 <SettingsIcon />
               </button>
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-3">
+              <div className="relative user-menu-container">
+                <div 
+                  className="flex items-center space-x-3 cursor-pointer"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                >
                   <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <span className="text-gray-700">{user?.name}</span>
                 </div>
-                <button
-                  onClick={logout}
-                  className="bg-gray-100 text-gray-700 px-3 py-1 text-sm rounded-lg hover:bg-gray-200 transition-colors duration-200"
-                >
-                  ログアウト
-                </button>
+                
+                {/* ユーザーメニュードロップダウン */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                    <div className="py-1">
+                      <button
+                        onClick={goToProfile}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        プロフィール設定
+                      </button>
+                      <button
+                        onClick={logout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        ログアウト
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -234,8 +276,11 @@ export const Dashboard: React.FC = () => {
                 <button className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center justify-center">
                   <span>カスタム面接を作成</span>
                 </button>
-                <button className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center">
-                  <span>面接をスケジュール</span>
+                <button 
+                  className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center"
+                  onClick={goToProfile}
+                >
+                  <span>プロフィールを編集</span>
                 </button>
               </div>
 
