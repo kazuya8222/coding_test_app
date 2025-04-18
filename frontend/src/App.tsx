@@ -7,6 +7,8 @@ import { RegisterForm } from './components/auth/RegisterForm';
 import { Dashboard } from './components/Dashboard';
 import { ProfilePage } from './components/ProfilePage';
 import { InterviewProblemPage } from './components/interview/InterviewProblem';
+import { VideoInterviewScreen } from './components/interview/VideoInterviewScreen';
+import { InterviewResultsPage } from './components/interview/InterviewResultsPage';
 
 function App() {
   return (
@@ -32,15 +34,31 @@ function App() {
             } 
           />
           <Route 
-            path="/interview/:id" 
+            path="/interview/:problemId" 
             element={
               <ProtectedRoute>
                 <InterviewProblemPage />
               </ProtectedRoute>
             } 
           />
+          {/* New routes for video interviews */}
+          <Route 
+            path="/video-interview/:problemId" 
+            element={
+              <ProtectedRoute>
+                <VideoInterviewScreen />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/interview/:interviewId/results" 
+            element={
+              <ProtectedRoute>
+                <InterviewResultsPage />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {/* <Route path="*" element={<NotFoundPage />} /> */}
         </Routes>
       </Router>
     </AuthProvider>

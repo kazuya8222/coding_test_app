@@ -14,6 +14,9 @@ export interface IMessage {
   timestamp: Date;
   sentiment_score?: number;
   clarity_score?: number;
+  // New fields for video interviews
+  audio_url?: string;
+  transcript?: string;
 }
 
 export interface ISubmission {
@@ -43,6 +46,21 @@ export interface IEvaluation {
   evaluated_at: Date;
 }
 
+// New interface for speech analysis
+export interface ISpeechAnalysis {
+  speech_rate?: number; // words per minute
+  filler_word_count?: number; // um, uh, like, etc.
+  clarity_score?: number; // how clear the speech is
+  confidence_score?: number; // detected confidence level
+  sentiment_analysis?: {
+    positive: number;
+    negative: number;
+    neutral: number;
+  };
+  keywords?: string[]; // important keywords detected in speech
+  analyzed_at: Date;
+}
+
 export interface IInterviewSession extends Document {
   user_id: Types.ObjectId | IUser;
   problem_id: Types.ObjectId | IProblem;
@@ -56,6 +74,15 @@ export interface IInterviewSession extends Document {
   messages: IMessage[];
   submissions: ISubmission[];
   evaluation?: IEvaluation;
+  // New fields for video interviews
+  full_transcript?: string;
+  speech_analysis?: ISpeechAnalysis;
+  question_responses: {
+    question: string;
+    response_transcript: string;
+    response_time: number; // in seconds
+    response_quality_score?: number;
+  }[];
   created_at: Date;
   updated_at: Date;
 }
@@ -75,7 +102,10 @@ const MessageSchema = new Schema<IMessage>({
     default: Date.now
   },
   sentiment_score: Number,
-  clarity_score: Number
+  clarity_score: Number,
+  // New fields for video interviews
+  audio_url: String,
+  transcript: String
 });
 
 const SubmissionSchema = new Schema<ISubmission>({
@@ -121,6 +151,40 @@ const EvaluationSchema = new Schema<IEvaluation>({
   }
 });
 
+// New schema for speech analysis
+const SpeechAnalysisSchema = new Schema<ISpeechAnalysis>({
+  speech_rate: Number,
+  filler_word_count: Number,
+  clarity_score: Number,
+  confidence_score: Number,
+  sentiment_analysis: {
+    positive: Number,
+    negative: Number,
+    neutral: Number
+  },
+  keywords: [String],
+  analyzed_at: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const QuestionResponseSchema = new Schema({
+  question: {
+    type: String,
+    required: true
+  },
+  response_transcript: {
+    type: String,
+    required: true
+  },
+  response_time: {
+    type: Number,
+    required: true
+  },
+  response_quality_score: Number
+});
+
 const InterviewSessionSchema = new Schema<IInterviewSession>({
   user_id: {
     type: Schema.Types.ObjectId,
@@ -149,7 +213,11 @@ const InterviewSessionSchema = new Schema<IInterviewSession>({
   audio_recording_url: String,
   messages: [MessageSchema],
   submissions: [SubmissionSchema],
-  evaluation: EvaluationSchema
+  evaluation: EvaluationSchema,
+  // New fields for video interviews
+  full_transcript: String,
+  speech_analysis: SpeechAnalysisSchema,
+  question_responses: [QuestionResponseSchema]
 }, {
   timestamps: {
     createdAt: 'created_at',

@@ -58,7 +58,7 @@ export const StartInterview: React.FC<StartInterviewProps> = ({
     try {
       await onStart(interviewId);
       // Navigate to the interview page
-      navigate(`/interview/${interviewId}`);
+      navigate(`/video-interview/${interviewId}`);
     } catch (err) {
       console.error('Failed to start interview:', err);
       setError('面接の開始に失敗しました。もう一度お試しください。');
