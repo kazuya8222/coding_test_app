@@ -94,12 +94,6 @@ export const Dashboard: React.FC = () => {
               <button className="text-gray-600 hover:text-gray-900">
                 <BellIcon />
               </button>
-              <button 
-                className="text-gray-600 hover:text-gray-900"
-                onClick={goToProfile}
-              >
-                <SettingsIcon />
-              </button>
               <div className="relative user-menu-container">
                 <div 
                   className="flex items-center space-x-3 cursor-pointer"
@@ -108,9 +102,7 @@ export const Dashboard: React.FC = () => {
                   <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
-                  <span className="text-gray-700">{user?.name}</span>
                 </div>
-                
                 {/* ユーザーメニュードロップダウン */}
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">

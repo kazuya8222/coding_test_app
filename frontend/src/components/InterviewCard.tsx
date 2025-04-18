@@ -1,5 +1,6 @@
 import React from 'react';
 import { Interview, InterviewType, InterviewRole, InterviewDifficulty } from '../types/interview';
+import { StartInterview } from './StartInterview';
 
 interface InterviewCardProps {
   interview: Interview;
@@ -115,7 +116,15 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({ interview, onStart
               </span>
             )}
           </div>
-          <button
+          <StartInterview 
+            interviewId={interview.id}
+            interviewTitle={interview.title}
+            interviewType={interview.type}
+            interviewDuration={interview.time}
+            onStart={(id) => onStart(id)}
+            disabled={interview.status === 'in_progress'}
+          />
+          {/* <button
             onClick={onStart}
             disabled={interview.status === 'in_progress'}
             className={`px-4 py-2 rounded-md transition-colors duration-200 ${
@@ -125,7 +134,7 @@ export const InterviewCard: React.FC<InterviewCardProps> = ({ interview, onStart
             }`}
           >
             {interview.status === 'in_progress' ? '進行中' : '開始する'}
-          </button>
+          </button> */}
         </div>
       </div>
     </div>
