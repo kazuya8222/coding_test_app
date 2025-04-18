@@ -26,7 +26,6 @@ const App: React.FC = () => {
               </ProtectedRoute>
             }
           />          
-          <Route path="/problems" element={<ProblemList />} />
           <Route path="/interview/:problemId" element={<InterviewProblemPage />} />
         </Routes>
       </Router>

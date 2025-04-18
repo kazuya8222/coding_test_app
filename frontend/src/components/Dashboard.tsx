@@ -40,8 +40,6 @@ export const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         const data = await interviewApi.getInterviewsByType(activeTab);
-        console.log(activeTab);
-        console.log(data);
         setInterviews(data);
       } catch (error) {
         console.error('Error fetching interviews:', error);

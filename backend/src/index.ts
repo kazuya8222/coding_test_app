@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import interviewRoutes from './routes/interviews';
+import userRoutes from './routes/users';
 import connectDB from './config/database';
 
 dotenv.config();
@@ -19,9 +20,7 @@ connectDB();
 // ルート
 app.use('/api/auth', authRoutes);
 app.use('/api/interviews', interviewRoutes);
-app.get('/test', (req, res) => {
-  res.send('test OK');
-});
+app.use('/api/users', userRoutes);
 
 
 // エラーハンドリング

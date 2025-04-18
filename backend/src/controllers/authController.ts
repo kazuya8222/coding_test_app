@@ -74,3 +74,14 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'サーバーエラーが発生しました' });
   }
 };
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password_hash');
+    if (!user) {
+      return res.status(404).json({ message: 'ユーザーが見つかりません' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'サーバーエラーが発生しました' });
+  }
+}; 

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthState, LoginCredentials, RegisterData, User } from '../../../shared/types/auth';
 import { authApi } from '../api/auth';
-
+import { userApi } from '../api/users';
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const user = await authApi.getProfile(token);
+          const user = await userApi.getProfile();
           setState(prev => ({
             ...prev,
             user,

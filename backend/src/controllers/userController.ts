@@ -7,7 +7,7 @@ import { IProblem } from 'src/models/Problem';
 // プロフィール取得
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findById(req.user._id).select('-password_hash');
+    const user = await User.findById(req.user.userId).select('-password_hash');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -47,7 +47,7 @@ export const getInterviewHistory = async (req: AuthRequest, res: Response) => {
 // スキル進捗取得
 export const getSkillProgress = async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -78,7 +78,7 @@ export const getSkillProgress = async (req: AuthRequest, res: Response) => {
 // ダッシュボード統計取得
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

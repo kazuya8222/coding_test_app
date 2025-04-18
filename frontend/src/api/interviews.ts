@@ -1,4 +1,4 @@
-import axiosInstance from './axios';
+import {axiosInstance} from './axios';
 import { Interview, InterviewType, InterviewRole, InterviewDifficulty } from '../types/interview';
 
 export const interviewApi = {

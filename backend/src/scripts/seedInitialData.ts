@@ -156,7 +156,7 @@ const seedData = async (): Promise<void> => {
     
     const technicalProblems = await Problem.insertMany([
       {
-        title: 'React パフォーマンス最適化',
+        title: 'フロントエンド（React）',
         description: 'Reactアプリケーションのパフォーマンスを最適化する手法について議論します。',
         difficulty: 'medium',
         category_id: technicalCategories[0]._id,
@@ -176,8 +176,28 @@ const seedData = async (): Promise<void> => {
         ]
       },
       {
-        title: 'データベース設計の原則',
+        title: 'バックエンド（API設計、DB設計）',
         description: 'スケーラブルなデータベース設計の原則と手法について議論します。',
+        difficulty: 'hard',
+        category_id: technicalCategories[1]._id,
+        interview_type_id: typeIds.technical,
+        interview_type: 'technical',
+        estimated_time: 50,
+        technologies: ['SQL', 'NoSQL', 'Database Design'],
+        role_focus: ['backend', 'fullstack'],
+        popularity: 78,
+        question_script: '大規模なウェブアプリケーション向けのデータベース設計で考慮すべき主要な原則について説明してください。',
+        follow_up_questions: [
+          'SQL と NoSQL データベースをいつ、どのように選択しますか？',
+          'データベースのシャーディングとは何ですか？どのような場合に適用すべきですか？'
+        ],
+        expected_answers: [
+          '正規化と非正規化のトレードオフ、インデックス戦略、パーティショニング、CAP定理などに言及すべき'
+        ]
+      },
+      {
+        title: 'インフラ、ネットワーク',
+        description: '保守運用、サイバーセキュリティの対策手法について議論します。',
         difficulty: 'hard',
         category_id: technicalCategories[1]._id,
         interview_type_id: typeIds.technical,
@@ -199,7 +219,7 @@ const seedData = async (): Promise<void> => {
     
     const behavioralProblems = await Problem.insertMany([
       {
-        title: 'チームでの困難な状況',
+        title: '新卒採用',
         description: 'チームで困難な状況に直面したときの対処法について議論します。',
         difficulty: 'medium',
         category_id: behavioralCategories[1]._id,
@@ -221,7 +241,30 @@ const seedData = async (): Promise<void> => {
         ]
       },
       {
-        title: 'リーダーシップ体験',
+        title: '中途採用',
+        description: 'あなたがリーダーシップを発揮した具体的な経験について議論します。',
+        difficulty: 'medium',
+        category_id: behavioralCategories[0]._id,
+        interview_type_id: typeIds.behavioral,
+        interview_type: 'behavioral',
+        estimated_time: 30,
+        popularity: 92,
+        question_type: 'leadership',
+        company_culture: ['enterprise', 'gafa'],
+        question_script: 'あなたがチームをリードした状況について具体的に教えてください。どのような課題があり、どのように対処しましたか？',
+        follow_up_questions: [
+          'その経験からリーダーシップについて何を学びましたか？',
+          'チームメンバーのモチベーションを高めるために何をしましたか？'
+        ],
+        answer_evaluation_criteria: [
+          'リーダーシップスキル',
+          '決断力',
+          'チーム管理能力',
+          '結果志向'
+        ]
+      },
+      {
+        title: 'インターンシップ採用',
         description: 'あなたがリーダーシップを発揮した具体的な経験について議論します。',
         difficulty: 'medium',
         category_id: behavioralCategories[0]._id,
