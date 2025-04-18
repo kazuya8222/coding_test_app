@@ -5,12 +5,14 @@ interface ModalProps {
   children: React.ReactNode;
   onClose: () => void;
   closeOnOutsideClick?: boolean;
+  size?: 'sm' | 'md' | 'lg' | 'xl'; // サイズオプションを追加
 }
 
 export const Modal: React.FC<ModalProps> = ({ 
   children, 
   onClose, 
-  closeOnOutsideClick = true 
+  closeOnOutsideClick = true,
+  size = 'md' // デフォルトは中サイズ
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -44,11 +46,23 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [closeOnOutsideClick, onClose]);
 
+  // サイズに基づいてクラスを設定
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl'
+  };
+
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-300 ease-out"
+      style={{ animation: 'fadeIn 0.3s ease-out forwards' }}
+    >
       <div 
         ref={modalRef}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto"
+        className={`bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full max-h-[90vh] overflow-auto transform transition-all duration-300 ease-out`}
+        style={{ animation: 'scaleIn 0.3s ease-out forwards' }}
       >
         {children}
       </div>

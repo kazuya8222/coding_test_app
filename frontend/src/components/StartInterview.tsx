@@ -109,58 +109,67 @@ export const StartInterview: React.FC<StartInterviewProps> = ({
         {isLoading ? '開始中...' : '開始する'}
       </button>
       
-      {showModal && (
+        {showModal && (
         <Modal 
-          onClose={() => countdown === null && !isLoading && setShowModal(false)}
-          closeOnOutsideClick={countdown === null && !isLoading}
+            onClose={() => countdown === null && !isLoading && setShowModal(false)}
+            closeOnOutsideClick={countdown === null && !isLoading}
+            size="lg" // より大きなサイズを使用
         >
-          {countdown !== null ? (
+            {countdown !== null ? (
             <div className="p-10 flex flex-col items-center justify-center">
-              <h2 className="text-2xl font-bold mb-6">面接が始まります...</h2>
-              <div className="text-6xl font-bold text-blue-600 mb-8">
+                <h2 className="text-2xl font-bold mb-6">面接が始まります...</h2>
+                <div className="text-6xl font-bold text-blue-600 mb-8">
                 {countdown}
-              </div>
-              <p className="text-gray-600">落ち着いて、自信を持って！</p>
-            </div>
-          ) : (
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">{interviewTitle}</h2>
-              <p className="mb-3">このインタビューの準備はできていますか？</p>
-              
-              <div className="mb-4">
-                <h3 className="font-medium">インタビュー詳細:</h3>
-                <ul className="list-disc pl-5 mt-2">
-                  <li>タイプ: {getTypeLabel(interviewType)}</li>
-                  <li>予想時間: {formatDuration(interviewDuration)}</li>
-                </ul>
-              </div>
-              
-              {error && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-                  {error}
                 </div>
-              )}
-              
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowModal(false)}
-                  disabled={isLoading}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  キャンセル
-                </button>
-                <button
-                  onClick={handleReadyClick}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  準備OK
-                </button>
-              </div>
+                <p className="text-gray-600">落ち着いて、自信を持って！</p>
             </div>
-          )}
+            ) : (
+            <div className="p-8"> {/* パディングを増やして内容を広げる */}
+                <h2 className="text-2xl font-semibold mb-6">{interviewTitle}</h2>
+                <p className="mb-5 text-lg">このインタビューの準備はできていますか？</p>
+                
+                <div className="mb-6 bg-blue-50 p-5 rounded-lg">
+                <h3 className="font-medium text-lg mb-3">インタビュー詳細:</h3>
+                <ul className="space-y-2 pl-5">
+                    <li className="flex items-center">
+                    <span className="mr-2">•</span>
+                    <span className="font-medium mr-2">タイプ:</span>
+                    <span>{getTypeLabel(interviewType)}</span>
+                    </li>
+                    <li className="flex items-center">
+                    <span className="mr-2">•</span>
+                    <span className="font-medium mr-2">予想時間:</span>
+                    <span>{formatDuration(interviewDuration)}</span>
+                    </li>
+                </ul>
+                </div>
+                
+                {error && (
+                <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md">
+                    {error}
+                </div>
+                )}
+                
+                <div className="flex justify-end space-x-4">
+                <button
+                    onClick={() => setShowModal(false)}
+                    disabled={isLoading}
+                    className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                >
+                    キャンセル
+                </button>
+                <button
+                    onClick={handleReadyClick}
+                    disabled={isLoading}
+                    className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                >
+                    準備OK
+                </button>
+                </div>
+            </div>
+            )}
         </Modal>
-      )}
+        )}
     </>
   );
 };
