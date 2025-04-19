@@ -61,60 +61,71 @@ export const VideoInterviewScreen: React.FC = () => {
         const response = await axiosInstance.get(`${API_URL}/video-interviews/${problemId}`);
         setProblem(response.data);
         
+        let parsedQuestions: InterviewQuestion[] = [];
+        
         // Parse questions from question_script
         if (response.data.question_script) {
-          // This is simplified - in production you would parse the script more intelligently
-          const parsedQuestions = response.data.question_script
-            .split('\n')
-            .filter((line: string) => line.trim().endsWith('?'))
-            .map((question: string, index: number) => ({
-              id: `q-${index}`,
-              question: question.trim(),
-              asked: false
-            }));
-            
-            // If there are follow-up questions, add them
-            if (response.data.follow_up_questions && response.data.follow_up_questions.length > 0) {
-              response.data.follow_up_questions.forEach((q: string, i: number) => {
-                parsedQuestions.push({
-                  id: `fq-${i}`,
-                  question: q,
-                  asked: false
-                });
+          // Split by newlines and filter out empty lines
+          const lines = response.data.question_script.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+          
+          // Process each line to extract questions
+          lines.forEach((line, index) => {
+            // Check if line contains a question mark or looks like a question
+            if (line.includes('?') || line.toLowerCase().startsWith('how') || 
+                line.toLowerCase().startsWith('what') || line.toLowerCase().startsWith('why')) {
+              parsedQuestions.push({
+                id: `q-${index}`,
+                question: line,
+                asked: false
               });
             }
-            
-            // Ensure we have at least 3 questions
-            if (parsedQuestions.length < 3) {
-              // Add generic questions if needed
-              const genericQuestions = [
-                "Can you tell me about your experience with this technology?",
-                "How would you approach this problem in a production environment?",
-                "What challenges do you foresee with this solution?"
-              ];
-              
-              while (parsedQuestions.length < 3) {
-                parsedQuestions.push({
-                  id: `gq-${parsedQuestions.length}`,
-                  question: genericQuestions[parsedQuestions.length % genericQuestions.length],
-                  asked: false
-                });
-              }
-            }
-            
-            setQuestions(parsedQuestions.slice(0, 3)); // Limit to 3 questions
-          }
-          
-          setLoading(false);
-        } catch (error) {
-          console.error('Error fetching problem:', error);
-          setError('Failed to load problem');
-          setLoading(false);
+          });
         }
-      };
+        
+        // Add follow-up questions if available
+        if (response.data.follow_up_questions && Array.isArray(response.data.follow_up_questions)) {
+          response.data.follow_up_questions.forEach((q: string, i: number) => {
+            if (q && q.trim()) {
+              parsedQuestions.push({
+                id: `fq-${i}`,
+                question: q.trim(),
+                asked: false
+              });
+            }
+          });
+        }
+        
+        // If we still don't have enough questions, add generic ones
+        if (parsedQuestions.length < 3) {
+          const genericQuestions = [
+            "Can you tell me about your experience with this technology?",
+            "How would you approach this problem in a production environment?",
+            "What challenges do you foresee with this solution?"
+          ];
+          
+          while (parsedQuestions.length < 3) {
+            parsedQuestions.push({
+              id: `gq-${parsedQuestions.length}`,
+              question: genericQuestions[parsedQuestions.length % genericQuestions.length],
+              asked: false
+            });
+          }
+        }
+        
+        // Set the questions state
+        setQuestions(parsedQuestions);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching problem:', error);
+        setError('Failed to load problem');
+        setLoading(false);
+      }
+    };
 
-      fetchProblem();
-    }, [problemId]);
+    fetchProblem();
+  }, [problemId]);
 
   // Request camera and microphone access
   useEffect(() => {
@@ -153,6 +164,7 @@ export const VideoInterviewScreen: React.FC = () => {
     try {
       // Create a new interview session
       const response = await axiosInstance.post(`${API_URL}/video-interviews/${problemId}/start`);
+      console.log(response.data);
       setInterviewSessionId(response.data._id);
       
       // Set start time
@@ -162,8 +174,12 @@ export const VideoInterviewScreen: React.FC = () => {
       // Add initial message from AI interviewer
       const initialMessage = {
         role: 'assistant' as const,
-        content: `Hello! I'll be your interviewer today. We'll be discussing the problem: "${problem?.title}". I'll ask you three questions about your approach and thought process. Let's begin with the first question: ${questions[0].question}`
+        content: `こんにちは！本日の面接官を担当します。『${problem?.title}』について話し合っていきましょう。全てで3つの質問をします。まずは最初の質問からはじめましょう：${questions[0].question}`
       };
+
+      await speakTextWithOpenAI(initialMessage.content, () => {
+        startRecording();
+      });
       
       setConversationHistory([initialMessage]);
       
@@ -173,7 +189,6 @@ export const VideoInterviewScreen: React.FC = () => {
       setQuestions(updatedQuestions);
       
       setInterviewStarted(true);
-      startRecording();
     } catch (error) {
       console.error('Error starting interview:', error);
       setError('Failed to start interview session');
@@ -332,8 +347,59 @@ export const VideoInterviewScreen: React.FC = () => {
       setError('Failed to get interviewer response');
     }
   };
+  const speakText = (text: string, onEndCallback?: () => void) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ja-JP'; // 日本語設定
+    if (onEndCallback) {
+      utterance.onend = onEndCallback;
+    }
+    window.speechSynthesis.speak(utterance);
+  };
+
+  let currentAudio: HTMLAudioElement | null = null;
+
+  const speakTextWithOpenAI = async (text: string, onEndCallback?: () => void) => {
+    try {
+      const response = await fetch(`${API_URL}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate speech');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // ここで前回のaudioを停止する！！
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      const audio = new Audio(audioUrl);
+      currentAudio = audio; // 今回のaudioを保存しておく
+      audio.play();
+
+      audio.onended = () => {
+        if (onEndCallback) {
+          onEndCallback();
+        }
+      };
+    } catch (error) {
+      console.error('Error generating or playing TTS:', error);
+      if (onEndCallback) {
+        onEndCallback();
+      }
+    }
+  };
+  
 
   // Handle ending the interview
+  // Update the endInterview function in frontend/src/components/interview/VideoInterviewScreen.tsx
+
   const endInterview = async () => {
     if (!interviewSessionId) return;
     
@@ -346,26 +412,35 @@ export const VideoInterviewScreen: React.FC = () => {
         setDuration(durationMinutes);
       }
       
-      // Submit interview completion
-      const response = await axiosInstance.post(`${API_URL}/video-interviews/${interviewSessionId}/submit`, {
-        messages: conversationHistory,
-        end_time: new Date()
+      // Submit interview completion - UPDATED ENDPOINT
+      const response = await axiosInstance.post(`${API_URL}/video-interviews/${interviewSessionId}/complete`, {
+        transcript: conversationHistory.filter(msg => msg.role === 'user').map(msg => msg.content).join('\n\n'),
+        question_responses: questions
+          .filter(q => q.asked)
+          .map((q, index) => {
+            const userMsg = conversationHistory.filter(msg => msg.role === 'user')[index];
+            return {
+              question: q.question,
+              response_transcript: userMsg ? userMsg.content : '',
+              response_time: 60 // Default value, calculate actual time if needed
+            };
+          })
       });
-      
-      // Set feedback if available
-      if (response.data.feedback) {
-        setFeedbackText(response.data.feedback);
-      } else {
-        setFeedbackText('Thank you for completing the interview. Your responses have been recorded.');
-      }
-      
-      // Navigate to results page
-      navigate(`/interview/${interviewSessionId}/results`);
-    } catch (error) {
-      console.error('Error ending interview:', error);
-      setError('Failed to submit interview results');
+    
+    // Set feedback if available
+    if (response.data.feedback) {
+      setFeedbackText(response.data.feedback);
+    } else {
+      setFeedbackText('Thank you for completing the interview. Your responses have been recorded.');
     }
-  };
+    
+    // Navigate to results page
+    navigate(`/interview/${interviewSessionId}/results`);
+  } catch (error) {
+    console.error('Error ending interview:', error);
+    setError('Failed to submit interview results');
+  }
+};
 
   if (loading) {
     return (
