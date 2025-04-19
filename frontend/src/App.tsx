@@ -9,12 +9,14 @@ import { ProfilePage } from './components/ProfilePage';
 import { InterviewProblemPage } from './components/interview/InterviewProblem';
 import { VideoInterviewScreen } from './components/interview/VideoInterviewScreen';
 import { InterviewResultsPage } from './components/interview/InterviewResultsPage';
+import { Home } from './components/Home';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
+        <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
           <Route 
@@ -58,7 +60,6 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

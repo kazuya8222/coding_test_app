@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
-
+import { axiosInstance } from '../../api/axios';
 const API_URL = import.meta.env.VITE_API_URL;
 
 interface InterviewResult {
@@ -67,7 +67,7 @@ export const InterviewResultsPage: React.FC = () => {
   useEffect(() => {
     const fetchInterviewResults = async () => {
       try {
-        const response = await axios.get(`${API_URL}/video-interviews/${interviewId}/results`);
+        const response = await axiosInstance.get(`${API_URL}/video-interviews/${interviewId}/results`);
         setResult(response.data);
         setLoading(false);
       } catch (error) {

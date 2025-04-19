@@ -369,6 +369,7 @@ Keep the feedback balanced, constructive, and helpful. Focus on specific aspects
  */
 export const getInterviewResults = async (req: AuthRequest, res: Response) => {
   try {
+    console.log(req);
     const interview = await InterviewSession.findById(req.params.id)
       .populate('problem_id')
       .populate('user_id', 'name email profile');

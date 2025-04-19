@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { InterviewProblem } from '../../../../shared/types/interview';
+import { InterviewProblem } from '../../types/interview';
 import { Modal } from '../Modal';
 import { axiosInstance } from '../../api/axios';
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Configuration for OpenAI Whisper and GPT-4o
-const OPENAI_API_URL = import.meta.env.OPENAI_API_URL || 'https://api.openai.com/v1';
+const OPENAI_API_URL = import.meta.env.VITE_OPENAI_API_URL || 'https://api.openai.com/v1';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -32,6 +32,7 @@ export const VideoInterviewScreen: React.FC = () => {
   const [recording, setRecording] = useState(false);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [transcription, setTranscription] = useState('');
+  const audioChunksRef = useRef<Blob[]>([]);
   
   // Audio visualization
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,6 +52,7 @@ export const VideoInterviewScreen: React.FC = () => {
   const [interviewEnded, setInterviewEnded] = useState(false);
   const [interviewSessionId, setInterviewSessionId] = useState<string | null>(null);
   const [loadingResponse, setLoadingResponse] = useState(false);
+  const [recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
   
   // Audio playback state
   const [isAITalking, setIsAITalking] = useState(false);
@@ -64,6 +66,8 @@ export const VideoInterviewScreen: React.FC = () => {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [duration, setDuration] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
+  const [mediaReady, setMediaReady] = useState(false);
+
 
   // Load problem details and initialize questions
   useEffect(() => {
@@ -78,11 +82,11 @@ export const VideoInterviewScreen: React.FC = () => {
         if (response.data.question_script) {
           // Split by newlines and filter out empty lines
           const lines = response.data.question_script.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+            .map((line: string) => line.trim())
+            .filter((line: string) => line.length > 0);
           
           // Process each line to extract questions
-          lines.forEach((line, index) => {
+          lines.forEach((line: string, index: number) => {
             // Check if line contains a question mark or looks like a question
             if (line.includes('?') || line.toLowerCase().startsWith('how') || 
                 line.toLowerCase().startsWith('what') || line.toLowerCase().startsWith('why')) {
@@ -184,6 +188,8 @@ useEffect(() => {
       
       // 音声の可視化開始
       setIsAnimating(true);
+
+      setMediaReady(true);
     } catch (err) {
       console.error('Error accessing media devices:', err);
       setError('Failed to access camera or microphone. Please ensure permissions are granted.');
@@ -260,13 +266,16 @@ useEffect(() => {
     };
   }, [isAnimating, isAITalking]);
 
+  const [interviewInitialized, setInterviewInitialized] = useState(false);
+
   // Automatically start the interview
   useEffect(() => {
     // If we have the problem and we're already on this screen, start the interview
-    if (problem && !interviewStarted && !loading) {
+    if (!interviewInitialized && problem && mediaReady) {
       startInterview();
+      setInterviewInitialized(true);
     }
-  }, [problem, loading]);
+  }, [problem, mediaReady,interviewInitialized]);
 
   // Start interview session
   const startInterview = async () => {
@@ -285,7 +294,7 @@ useEffect(() => {
       // Add initial message from AI interviewer
       const initialMessage = {
         role: 'assistant' as const,
-        content: `こんにちは！本日の面接官を担当します。『${problem?.title}』について話し合っていきましょう。全てで3つの質問をします。まずは最初の質問からはじめましょう：${questions[0].question}`
+        content: `はじめまして。今回、面接官を担当するAI面接官です。本日は『${problem?.title}』に関連するトピックについて、いくつか質問させていただきます。全体で3問、順番にお伺いしますので、リラックスしてご自身の考えをお聞かせください。では、まず最初の質問です。${questions[0].question}`
       };
       
       setCurrentAudioMessage(initialMessage.content);
@@ -313,45 +322,75 @@ useEffect(() => {
 
   // Handle starting the recording
   const startRecording = () => {
-    if (!stream) return;
+    if (!stream) {
+      console.error('startRecording: stream is null');
+      return;
+    }
   
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
+    try {
+      const options = { mimeType: 'audio/webm' };
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
   
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        setAudioChunks(prev => [...prev, event.data]);
-      }
-    };
+      mediaRecorder.ondataavailable = (event) => {
+        console.log('ondataavailable event triggered', event);
+        if (event.data && event.data.size > 0) {
+          console.log('Captured audio chunk:', event.data);
+          audioChunksRef.current.push(event.data);
+        } else {
+          console.warn('ondataavailable triggered but no data');
+        }
+      };
   
-    mediaRecorder.onstop = handleRecordingStopped;
+      mediaRecorder.onstart = () => {
+        console.log('mediaRecorder.onstart: Recording has started');
+      };
+      mediaRecorder.onerror = (e) => {
+        console.error('mediaRecorder error:', e);
+      };
   
-    setAudioChunks([]);
-    mediaRecorder.start();
-    setRecording(true);
+      mediaRecorder.onstop = () => {
+        console.log('mediaRecorder.onstop: Recording has stopped');
+        handleRecordingStopped();
+      };
   
-    // 🎯 無音検出用: 監視を開始
-    monitorSilence();
+      console.log('mediaRecorder readyState before start:', mediaRecorder.state); // ←ここ重要
+      audioChunksRef.current = [];
+      mediaRecorder.start(100);
+      console.log('Recording started with state:', mediaRecorder.state);
+  
+      setRecording(true);
+      setRecordingStartTime(Date.now());
+      monitorSilence();
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
   };
+  
+  
   
 
   // Process audio after recording stops
   const handleRecordingStopped = async () => {
-    if (audioChunks.length === 0) return;
-    
-    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    
-    // Create a FormData object to send the audio
+    console.log('handleRecordingStopped triggered');
+    console.log('audioChunksRef.current:', audioChunksRef.current);
+  
+    if (audioChunksRef.current.length === 0) {
+      console.error('No audio chunks captured');
+      return;
+    }
+  
+    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+  
     const formData = new FormData();
     formData.append('file', audioBlob, 'recording.webm');
     formData.append('model', 'whisper-1');
-    
+  
     try {
       setLoadingResponse(true);
-      
-      // Send to Whisper API for transcription
+  
       const response = await axios.post(
-        `${OPENAI_API_URL}/audio/transcriptions`, 
+        `https://api.openai.com/v1/audio/transcriptions`,
         formData,
         {
           headers: {
@@ -360,28 +399,24 @@ useEffect(() => {
           }
         }
       );
-      
+  
       const transcribedText = response.data.text;
+      console.log('Transcription result:', transcribedText);
+  
       setTranscription(transcribedText);
-      
-      // Add user message to conversation
-      const userMessage = {
-        role: 'user' as const,
-        content: transcribedText
-      };
-      
+  
+      const userMessage = { role: 'user' as const, content: transcribedText };
       setConversationHistory(prev => [...prev, userMessage]);
-      
-      // Get AI response
+  
       await getFollowUpQuestion(transcribedText);
-      
-      setLoadingResponse(false);
     } catch (error) {
       console.error('Error processing audio:', error);
-      setLoadingResponse(false);
       setError('Failed to process recording');
+    } finally {
+      setLoadingResponse(false);
     }
   };
+  
 
   // Get response from GPT-4o
   const getAIResponse = async (userMessage: string) => {
@@ -394,7 +429,7 @@ useEffect(() => {
       // Check if this was the last question
       const isLastQuestion = nextIndex >= questions.length;
       
-      let aiResponse;
+      let aiResponse: string;
       
       if (isLastQuestion) {
         // If all questions have been asked, end the interview
@@ -523,7 +558,7 @@ useEffect(() => {
     const bufferLength = analyser.fftSize;
     const dataArray = new Uint8Array(bufferLength);
   
-    let silenceStart = Date.now();
+    let silenceStart: number = Date.now();
     const silenceThreshold = 15; // 0〜255のスケール、ここでは小さい値で無音と判定
     const maxSilenceDuration = 3000; // 3秒
   
@@ -533,7 +568,7 @@ useEffect(() => {
       analyser.getByteTimeDomainData(dataArray);
   
       // 音量（振幅）の最大値を計算
-      let maxVolume = 0;
+      let maxVolume: number = 0;
       for (let i = 0; i < bufferLength; i++) {
         const v = Math.abs(dataArray[i] - 128); // 128中心
         if (v > maxVolume) {
@@ -559,12 +594,29 @@ useEffect(() => {
     requestAnimationFrame(checkSilence);
   };
   const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      console.log('stopRecording called');
+    if (!mediaRecorderRef.current || !recording) {
+      console.log('stopRecording called: but no active recording');
+      return;
+    }
+  
+    const now = Date.now();
+    const MIN_RECORDING_TIME = 500; // 最低録音時間500ms
+    const elapsed = recordingStartTime ? now - recordingStartTime : Infinity;
+  
+    if (elapsed < MIN_RECORDING_TIME) {
+      console.log(`録音時間短すぎ（${elapsed}ms）。少し待ちます...`);
+      setTimeout(() => {
+        if (mediaRecorderRef.current && recording) {
+          console.log('遅延後stopRecording実行');
+          mediaRecorderRef.current.stop();
+        }
+      }, MIN_RECORDING_TIME - elapsed);
+    } else {
+      console.log('stopRecording called: stopping mediaRecorder');
       mediaRecorderRef.current.stop();
-      // recordingフラグはstop時にhandleRecordingStopped側で管理する
     }
   };
+  
 
   // Handle ending the interview
   const endInterview = async () => {
@@ -675,7 +727,7 @@ useEffect(() => {
               <div className="space-y-2 text-sm">
                 <p><span className="font-medium">問題:</span> {problem.title}</p>
                 <p><span className="font-medium">難易度:</span> {problem.difficulty}</p>
-                <p><span className="font-medium">タイプ:</span> {problem.interview_type}</p>
+                <p><span className="font-medium">タイプ:</span> {problem.type}</p>
                 {startTime && (
                   <p><span className="font-medium">経過時間:</span> {Math.floor((Date.now() - startTime.getTime()) / 60000)} 分</p>
                 )}
