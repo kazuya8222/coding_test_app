@@ -9,7 +9,7 @@ import interviewVideoRoutes from './routes/interviewVideo';
 import userRoutes from './routes/users';
 import connectDB from './config/database';
 import ttsRoutes from './routes/tts';
-
+import followupRoutes from './routes/followup';
 dotenv.config();
 
 const app = express();
@@ -30,6 +30,7 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/video-interviews', interviewVideoRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tts', ttsRoutes);
+app.use('/api/followup', followupRoutes);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

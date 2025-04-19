@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from './Modal';
 
@@ -25,50 +25,41 @@ export const StartInterview: React.FC<StartInterviewProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (countdown === 0) {
-      startInterview();
-    }
-  }, [countdown]);
-
   const handleStartClick = () => {
     setShowModal(true);
     setError(null);
   };
   
-  const startCountdown = () => {
+  const handleReadyClick = async () => {
     setCountdown(3);
     
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       setCountdown(prev => {
         if (prev !== null && prev > 0) {
           return prev - 1;
         } else {
           clearInterval(timer);
-          return prev;
+          // Start interview process right after countdown
+          startInterview();
+          return 0;
         }
       });
     }, 1000);
-    
-    return () => clearInterval(timer);
   };
   
   const startInterview = async () => {
     setIsLoading(true);
     try {
       await onStart(interviewId);
-      // Navigate to the interview page
+      // Directly navigate to the video interview page
       navigate(`/video-interview/${interviewId}`);
     } catch (err) {
       console.error('Failed to start interview:', err);
       setError('面接の開始に失敗しました。もう一度お試しください。');
       setCountdown(null);
       setIsLoading(false);
+      setShowModal(false);
     }
-  };
-  
-  const handleReadyClick = () => {
-    startCountdown();
   };
   
   const getTypeLabel = (type: string) => {
@@ -109,67 +100,67 @@ export const StartInterview: React.FC<StartInterviewProps> = ({
         {isLoading ? '開始中...' : '開始する'}
       </button>
       
-        {showModal && (
+      {showModal && (
         <Modal 
-            onClose={() => countdown === null && !isLoading && setShowModal(false)}
-            closeOnOutsideClick={countdown === null && !isLoading}
-            size="lg" // より大きなサイズを使用
+          onClose={() => countdown === null && !isLoading && setShowModal(false)}
+          closeOnOutsideClick={countdown === null && !isLoading}
+          size="lg"
         >
-            {countdown !== null ? (
+          {countdown !== null ? (
             <div className="p-10 flex flex-col items-center justify-center">
-                <h2 className="text-2xl font-bold mb-6">面接が始まります...</h2>
-                <div className="text-6xl font-bold text-blue-600 mb-8">
+              <h2 className="text-2xl font-bold mb-6">面接が始まります...</h2>
+              <div className="text-6xl font-bold text-blue-600 mb-8">
                 {countdown}
-                </div>
-                <p className="text-gray-600">落ち着いて、自信を持って！</p>
+              </div>
+              <p className="text-gray-600">落ち着いて、自信を持って！</p>
             </div>
-            ) : (
-            <div className="p-8"> {/* パディングを増やして内容を広げる */}
-                <h2 className="text-2xl font-semibold mb-6">{interviewTitle}</h2>
-                <p className="mb-5 text-lg">このインタビューの準備はできていますか？</p>
-                
-                <div className="mb-6 bg-blue-50 p-5 rounded-lg">
+          ) : (
+            <div className="p-8">
+              <h2 className="text-2xl font-semibold mb-6">{interviewTitle}</h2>
+              <p className="mb-5 text-lg">このインタビューの準備はできていますか？</p>
+              
+              <div className="mb-6 bg-blue-50 p-5 rounded-lg">
                 <h3 className="font-medium text-lg mb-3">インタビュー詳細:</h3>
                 <ul className="space-y-2 pl-5">
-                    <li className="flex items-center">
+                  <li className="flex items-center">
                     <span className="mr-2">•</span>
                     <span className="font-medium mr-2">タイプ:</span>
                     <span>{getTypeLabel(interviewType)}</span>
-                    </li>
-                    <li className="flex items-center">
+                  </li>
+                  <li className="flex items-center">
                     <span className="mr-2">•</span>
                     <span className="font-medium mr-2">予想時間:</span>
                     <span>{formatDuration(interviewDuration)}</span>
-                    </li>
+                  </li>
                 </ul>
-                </div>
-                
-                {error && (
+              </div>
+              
+              {error && (
                 <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md">
-                    {error}
+                  {error}
                 </div>
-                )}
-                
-                <div className="flex justify-end space-x-4">
+              )}
+              
+              <div className="flex justify-end space-x-4">
                 <button
-                    onClick={() => setShowModal(false)}
-                    disabled={isLoading}
-                    className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                  onClick={() => setShowModal(false)}
+                  disabled={isLoading}
+                  className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                 >
-                    キャンセル
+                  キャンセル
                 </button>
                 <button
-                    onClick={handleReadyClick}
-                    disabled={isLoading}
-                    className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                  onClick={handleReadyClick}
+                  disabled={isLoading}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-base"
                 >
-                    準備OK
+                  準備OK
                 </button>
-                </div>
+              </div>
             </div>
-            )}
+          )}
         </Modal>
-        )}
+      )}
     </>
   );
 };

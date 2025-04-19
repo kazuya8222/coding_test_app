@@ -33,6 +33,13 @@ export const VideoInterviewScreen: React.FC = () => {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [transcription, setTranscription] = useState('');
   
+  // Audio visualization
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  
   // Interview state
   const [problem, setProblem] = useState<InterviewProblem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +51,10 @@ export const VideoInterviewScreen: React.FC = () => {
   const [interviewEnded, setInterviewEnded] = useState(false);
   const [interviewSessionId, setInterviewSessionId] = useState<string | null>(null);
   const [loadingResponse, setLoadingResponse] = useState(false);
+  
+  // Audio playback state
+  const [isAITalking, setIsAITalking] = useState(false);
+  const [currentAudioMessage, setCurrentAudioMessage] = useState<string>('');
   
   // Countdown state
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -128,34 +139,134 @@ export const VideoInterviewScreen: React.FC = () => {
   }, [problemId]);
 
   // Request camera and microphone access
+  // MediaStream取得と処理の修正
+
+// Request camera and microphone access
+useEffect(() => {
+  const requestMediaPermission = async () => {
+    try {
+      // まず映像のみのストリームを取得（音声なし）
+      const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
+      
+      // 音声のみのストリームを別途取得
+      const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: true
+      });
+      
+      // ビデオ要素には映像のみのストリームを割り当て
+      if (videoRef.current) {
+        videoRef.current.srcObject = videoOnlyStream;
+        // 念のため muted を確実に設定
+        videoRef.current.muted = true;
+      }
+      
+      // 両方のストリームを保存（録画用に必要な場合）
+      // 注: 実際の録画時には両方のトラックを組み合わせる処理が必要
+      setStream(audioOnlyStream);
+      
+      // 音声分析用のセットアップ
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+      
+      const source = audioContext.createMediaStreamSource(audioOnlyStream);
+      source.connect(analyser);
+      // ここで destination には接続しない
+      // 下記の行はコメントアウトしておく
+      // source.connect(audioContext.destination);
+      
+      // 音声の可視化開始
+      setIsAnimating(true);
+    } catch (err) {
+      console.error('Error accessing media devices:', err);
+      setError('Failed to access camera or microphone. Please ensure permissions are granted.');
+    }
+  };
+  
+  requestMediaPermission();
+  
+  // Cleanup function to stop all tracks when component unmounts
+  return () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+  };
+}, []);
+
+
+  // Audio visualization when the interview is active
   useEffect(() => {
-    const requestMediaPermission = async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
+    if (!canvasRef.current || !analyserRef.current || !isAnimating) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const analyser = analyserRef.current;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    
+    const renderFrame = () => {
+      animationRef.current = requestAnimationFrame(renderFrame);
+      
+      analyser.getByteFrequencyData(dataArray);
+      
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      
+      // Background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      
+      const barWidth = (WIDTH / bufferLength) * 2.5;
+      let x = 0;
+      
+      // Determine who is speaking and use appropriate color
+      const color = isAITalking ? '#6366F1' : '#2563EB'; // Indigo for AI, Blue for user
+      
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = dataArray[i] / 2; // Scale down to fit better
         
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
+        ctx.fillStyle = color;
+        ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
         
-        setStream(mediaStream);
-      } catch (err) {
-        console.error('Error accessing media devices:', err);
-        setError('Failed to access camera or microphone. Please ensure permissions are granted.');
+        x += barWidth + 1;
       }
     };
     
-    requestMediaPermission();
+    renderFrame();
     
-    // Cleanup function to stop all tracks when component unmounts
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [isAnimating, isAITalking]);
+
+  // Automatically start the interview
+  useEffect(() => {
+    // If we have the problem and we're already on this screen, start the interview
+    if (problem && !interviewStarted && !loading) {
+      startInterview();
+    }
+  }, [problem, loading]);
 
   // Start interview session
   const startInterview = async () => {
@@ -176,8 +287,13 @@ export const VideoInterviewScreen: React.FC = () => {
         role: 'assistant' as const,
         content: `こんにちは！本日の面接官を担当します。『${problem?.title}』について話し合っていきましょう。全てで3つの質問をします。まずは最初の質問からはじめましょう：${questions[0].question}`
       };
-
+      
+      setCurrentAudioMessage(initialMessage.content);
+      setIsAITalking(true);
+      setIsAnimating(true);
+      
       await speakTextWithOpenAI(initialMessage.content, () => {
+        setIsAITalking(false);
         startRecording();
       });
       
@@ -195,53 +311,29 @@ export const VideoInterviewScreen: React.FC = () => {
     }
   };
 
-  // Start countdown and then interview
-  const handleReadyClick = () => {
-    setCountdown(3);
-    setShowModal(true);
-    
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev !== null && prev > 0) {
-          return prev - 1;
-        } else {
-          clearInterval(timer);
-          setShowModal(false);
-          startInterview();
-          return null;
-        }
-      });
-    }, 1000);
-  };
-
   // Handle starting the recording
   const startRecording = () => {
     if (!stream) return;
-    
+  
     const mediaRecorder = new MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
-    
+  
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         setAudioChunks(prev => [...prev, event.data]);
       }
     };
-    
+  
     mediaRecorder.onstop = handleRecordingStopped;
-    
-    // Start recording
+  
     setAudioChunks([]);
     mediaRecorder.start();
     setRecording(true);
+  
+    // 🎯 無音検出用: 監視を開始
+    monitorSilence();
   };
-
-  // Handle stopping the recording and processing audio
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop();
-      setRecording(false);
-    }
-  };
+  
 
   // Process audio after recording stops
   const handleRecordingStopped = async () => {
@@ -281,7 +373,7 @@ export const VideoInterviewScreen: React.FC = () => {
       setConversationHistory(prev => [...prev, userMessage]);
       
       // Get AI response
-      await getAIResponse(transcribedText);
+      await getFollowUpQuestion(transcribedText);
       
       setLoadingResponse(false);
     } catch (error) {
@@ -338,56 +430,84 @@ export const VideoInterviewScreen: React.FC = () => {
         ]
       });
       
-      // Start recording for next response
-      if (!isLastQuestion) {
-        startRecording();
-      }
+      // Set current audio message and indicate AI is talking
+      setCurrentAudioMessage(aiResponse);
+      setIsAITalking(true);
+      
+      // Start TTS
+      await speakTextWithOpenAI(aiResponse, () => {
+        setIsAITalking(false);
+        if (!isLastQuestion) {
+          startRecording();
+        }
+      });
     } catch (error) {
       console.error('Error getting AI response:', error);
       setError('Failed to get interviewer response');
     }
   };
-  const speakText = (text: string, onEndCallback?: () => void) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ja-JP'; // 日本語設定
-    if (onEndCallback) {
-      utterance.onend = onEndCallback;
+  const getFollowUpQuestion = async (userAnswer: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/followup`, {
+        userAnswer,
+      });
+  
+      const followUp = response.data.followUpQuestion;
+  
+      setCurrentAudioMessage(followUp);
+      setIsAITalking(true);
+  
+      await speakTextWithOpenAI(followUp, () => {
+        setIsAITalking(false);
+        startRecording();
+      });
+    } catch (error) {
+      console.error('Error fetching follow-up:', error);
+      setError('Failed to fetch follow-up question');
     }
-    window.speechSynthesis.speak(utterance);
   };
+  
 
+  // Speech synthesis with OpenAI TTS
   let currentAudio: HTMLAudioElement | null = null;
 
   const speakTextWithOpenAI = async (text: string, onEndCallback?: () => void) => {
     try {
+      // 前の音声が再生中なら必ず停止する
+      if (currentAudio) {
+        currentAudio.pause();
+        URL.revokeObjectURL(currentAudio.src); // メモリリークを防ぐ
+        currentAudio = null;
+      }
+  
       const response = await fetch(`${API_URL}/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
       });
-
+  
       if (!response.ok) {
         throw new Error('Failed to generate speech');
       }
-
+  
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
-
-      // ここで前回のaudioを停止する！！
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-      }
-
+  
+      // 新しい Audio オブジェクトを作成
       const audio = new Audio(audioUrl);
-      currentAudio = audio; // 今回のaudioを保存しておく
-      audio.play();
-
+      currentAudio = audio;
+      
+      // 再生が終了したときの処理
       audio.onended = () => {
+        URL.revokeObjectURL(audioUrl); // 不要になったURLを解放
+        currentAudio = null;
         if (onEndCallback) {
           onEndCallback();
         }
       };
+      
+      // 再生開始
+      await audio.play();
     } catch (error) {
       console.error('Error generating or playing TTS:', error);
       if (onEndCallback) {
@@ -395,11 +515,58 @@ export const VideoInterviewScreen: React.FC = () => {
       }
     }
   };
+
+  const monitorSilence = () => {
+    if (!analyserRef.current) return;
   
+    const analyser = analyserRef.current;
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+  
+    let silenceStart = Date.now();
+    const silenceThreshold = 15; // 0〜255のスケール、ここでは小さい値で無音と判定
+    const maxSilenceDuration = 3000; // 3秒
+  
+    const checkSilence = () => {
+      if (!recording) return; // 録音してなかったら監視終了
+  
+      analyser.getByteTimeDomainData(dataArray);
+  
+      // 音量（振幅）の最大値を計算
+      let maxVolume = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = Math.abs(dataArray[i] - 128); // 128中心
+        if (v > maxVolume) {
+          maxVolume = v;
+        }
+      }
+  
+      if (maxVolume < silenceThreshold) {
+        // 無音が続いている
+        if (Date.now() - silenceStart > maxSilenceDuration) {
+          console.log('無音検出 → 自動停止');
+          stopRecording();
+          return; // 停止したので監視も終了
+        }
+      } else {
+        // 音を検知 → 無音タイマーリセット
+        silenceStart = Date.now();
+      }
+  
+      requestAnimationFrame(checkSilence); // 継続監視
+    };
+  
+    requestAnimationFrame(checkSilence);
+  };
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      console.log('stopRecording called');
+      mediaRecorderRef.current.stop();
+      // recordingフラグはstop時にhandleRecordingStopped側で管理する
+    }
+  };
 
   // Handle ending the interview
-  // Update the endInterview function in frontend/src/components/interview/VideoInterviewScreen.tsx
-
   const endInterview = async () => {
     if (!interviewSessionId) return;
     
@@ -412,7 +579,7 @@ export const VideoInterviewScreen: React.FC = () => {
         setDuration(durationMinutes);
       }
       
-      // Submit interview completion - UPDATED ENDPOINT
+      // Submit interview completion
       const response = await axiosInstance.post(`${API_URL}/video-interviews/${interviewSessionId}/complete`, {
         transcript: conversationHistory.filter(msg => msg.role === 'user').map(msg => msg.content).join('\n\n'),
         question_responses: questions
@@ -427,20 +594,20 @@ export const VideoInterviewScreen: React.FC = () => {
           })
       });
     
-    // Set feedback if available
-    if (response.data.feedback) {
-      setFeedbackText(response.data.feedback);
-    } else {
-      setFeedbackText('Thank you for completing the interview. Your responses have been recorded.');
+      // Set feedback if available
+      if (response.data.feedback) {
+        setFeedbackText(response.data.feedback);
+      } else {
+        setFeedbackText('Thank you for completing the interview. Your responses have been recorded.');
+      }
+      
+      // Navigate to results page
+      navigate(`/interview/${interviewSessionId}/results`);
+    } catch (error) {
+      console.error('Error ending interview:', error);
+      setError('Failed to submit interview results');
     }
-    
-    // Navigate to results page
-    navigate(`/interview/${interviewSessionId}/results`);
-  } catch (error) {
-    console.error('Error ending interview:', error);
-    setError('Failed to submit interview results');
-  }
-};
+  };
 
   if (loading) {
     return (
@@ -468,167 +635,204 @@ export const VideoInterviewScreen: React.FC = () => {
             {recording && (
               <span className="flex items-center text-red-600">
                 <span className="w-3 h-3 bg-red-600 rounded-full mr-2 animate-pulse"></span>
-                Recording
+                録音中
               </span>
             )}
-            {interviewStarted && !interviewEnded ? (
+            {interviewStarted && !interviewEnded && (
               <button
                 onClick={endInterview}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
-                End Interview
+                面接を終了
               </button>
-            ) : (
-              !interviewStarted && (
-                <button
-                  onClick={handleReadyClick}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Start Interview
-                </button>
-              )
             )}
           </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
-        {/* Video section (smaller) */}
-        <div className="w-full md:w-1/4 bg-gray-900 p-4 flex flex-col">
-          <div className="bg-black rounded-lg overflow-hidden flex-grow flex items-center justify-center">
-            {stream ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                className="w-full h-auto"
-              />
-            ) : (
-              <div className="text-gray-400">
-                Loading camera...
-              </div>
-            )}
-          </div>
-          <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-            <h3 className="text-white text-lg font-medium mb-2">Interview Info</h3>
-            <div className="text-gray-300 text-sm">
-              <p><span className="font-semibold">Problem:</span> {problem.title}</p>
-              <p><span className="font-semibold">Difficulty:</span> {problem.difficulty}</p>
-              <p><span className="font-semibold">Type:</span> {problem.interview_type}</p>
-              {startTime && (
-                <p><span className="font-semibold">Duration:</span> {Math.floor((Date.now() - startTime.getTime()) / 60000)} min</p>
+      {/* Main content - Modern voice chat UI */}
+      <main className="flex-grow flex flex-col overflow-hidden">
+        <div className="flex-grow flex flex-col md:flex-row p-6 gap-6">
+          {/* Left panel - Video and info */}
+          <div className="w-full md:w-1/3 flex flex-col gap-4">
+            {/* Video preview */}
+            <div className="bg-gray-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+              {stream ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="text-gray-400">カメラを読み込み中...</div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Interview section (larger) */}
-        <div className="w-full md:w-3/4 flex flex-col">
-          {/* AI Interviewer section */}
-          <div className="flex-grow bg-white p-6 overflow-y-auto">
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900">AI Interviewer</h2>
-              </div>
-
-              {/* Conversation history */}
-              <div className="space-y-6">
-                {conversationHistory.map((message, index) => (
-                  <div key={index} className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                    {message.role === 'assistant' && (
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
-                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                        </svg>
-                      </div>
-                    )}
-                    <div 
-                      className={`max-w-md p-4 rounded-lg ${
-                        message.role === 'assistant' 
-                          ? 'bg-indigo-50 text-gray-700' 
-                          : 'bg-blue-600 text-white'
-                      }`}
-                    >
-                      <p>{message.content}</p>
-                    </div>
-                    {message.role === 'user' && (
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center ml-3">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {/* Loading indicator */}
-                {loadingResponse && (
-                  <div className="flex justify-start">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
-                      <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                      </svg>
-                    </div>
-                    <div className="max-w-md p-4 rounded-lg bg-indigo-50">
-                      <div className="flex space-x-2">
-                        <div className="w-3 h-3 bg-indigo-400 rounded-full animate-bounce"></div>
-                        <div className="w-3 h-3 bg-indigo-400 rounded-full animate-bounce delay-100"></div>
-                        <div className="w-3 h-3 bg-indigo-400 rounded-full animate-bounce delay-200"></div>
-                      </div>
-                    </div>
-                  </div>
+            
+            {/* Interview info */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-lg font-medium text-gray-800 mb-3">面接情報</h3>
+              <div className="space-y-2 text-sm">
+                <p><span className="font-medium">問題:</span> {problem.title}</p>
+                <p><span className="font-medium">難易度:</span> {problem.difficulty}</p>
+                <p><span className="font-medium">タイプ:</span> {problem.interview_type}</p>
+                {startTime && (
+                  <p><span className="font-medium">経過時間:</span> {Math.floor((Date.now() - startTime.getTime()) / 60000)} 分</p>
                 )}
               </div>
-
-              {/* Instruction panel if interview hasn't started */}
-              {!interviewStarted && (
-                <div className="mt-8 p-6 bg-blue-50 rounded-lg">
-                  <h3 className="text-lg font-medium text-blue-800 mb-2">Interview Instructions</h3>
-                  <p className="text-blue-700 mb-4">
-                    This is a video interview with an AI interviewer. You'll be asked 3 questions about the problem shown above.
-                    Please speak clearly and make sure your microphone and camera are working properly.
-                  </p>
-                  <p className="text-blue-700 font-medium">
-                    Click "Start Interview" when you're ready to begin.
-                  </p>
-                </div>
+            </div>
+            
+            {/* Question progress */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-lg font-medium text-gray-800 mb-3">質問の進捗</h3>
+              <div className="space-y-3">
+                {questions.map((q, index) => (
+                  <div key={q.id} className="flex items-center">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                      currentQuestionIndex > index 
+                        ? 'bg-green-100 text-green-600' 
+                        : currentQuestionIndex === index 
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {currentQuestionIndex > index ? '✓' : index + 1}
+                    </div>
+                    <p className={`text-sm ${
+                      currentQuestionIndex > index 
+                        ? 'text-gray-500 line-through' 
+                        : currentQuestionIndex === index 
+                          ? 'text-gray-900 font-medium'
+                          : 'text-gray-400'
+                    }`}>
+                      {q.question.length > 50 ? q.question.substring(0, 50) + '...' : q.question}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Right panel - Voice chat UI */}
+          <div className="w-full md:w-2/3 bg-white rounded-lg shadow flex flex-col">
+            {/* Voice chat header */}
+            <div className="p-4 border-b border-gray-200 flex items-center">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-gray-800">AI面接官</h2>
+              {(recording || isAITalking) && (
+                <span className={`ml-4 px-3 py-1 rounded-full text-xs font-medium ${
+                  isAITalking 
+                    ? 'bg-indigo-100 text-indigo-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {isAITalking ? '話し中...' : '聞いています...'}
+                </span>
               )}
-              
-              {/* Transcription debug (can be removed in production) */}
-              {transcription && (
-                <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-700">Transcription Debug:</h3>
-                  <p className="text-sm text-gray-500">{transcription}</p>
+            </div>
+            
+            {/* Voice visualization area */}
+            <div className="flex-grow p-6 flex flex-col items-center justify-center">
+              {interviewStarted ? (
+                <>
+                  {/* Current speaking text */}
+                  <div className="w-full max-w-xl mb-8 text-center">
+                    <p className="text-xl text-gray-700 font-medium">
+                      {isAITalking ? currentAudioMessage : recording ? '音声を認識しています...' : ''}
+                    </p>
+                  </div>
+                  
+                  {/* Voice visualization canvas */}
+                  <div className={`w-64 h-64 rounded-full flex items-center justify-center bg-gray-50 ${
+                    isAITalking || recording ? 'border-4 border-blue-400 animate-pulse' : 'border border-gray-200'
+                  }`}>
+                    <canvas 
+                      ref={canvasRef} 
+                      width="256" 
+                      height="256" 
+                      className="rounded-full"
+                    />
+                    
+                    {/* Dynamic circle in the middle */}
+                    <div className={`absolute w-40 h-40 rounded-full bg-white flex items-center justify-center shadow-md 
+                      ${isAITalking || recording ? 'animate-ping opacity-30' : 'opacity-0'}`}>
+                    </div>
+                    
+                    <div className="absolute w-32 h-32 rounded-full bg-white flex items-center justify-center shadow-md">
+                      {isAITalking ? (
+                        <svg className="w-16 h-16 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                      ) : recording ? (
+                        <svg className="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Status text */}
+                  <div className="mt-8 text-center">
+                    <p className="text-lg font-medium text-gray-600">
+                      {isAITalking ? 'AIが話しています...' : recording ? 'あなたの番です' : '待機中...'}
+                    </p>
+                    {recording && (
+                      <button
+                        onClick={stopRecording}
+                        className="mt-4 px-6 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                      >
+                        返答を完了
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center bg-blue-50 p-8 rounded-lg">
+                  <h3 className="text-xl font-medium text-blue-800 mb-4">面接の準備ができました</h3>
+                  <p className="text-blue-700 mb-6">
+                    AIインタビュアーがあなたに質問をします。
+                    質問に対して自然に話すだけです。
+                    面接は自動的に開始されます。
+                  </p>
+                  <div className="animate-bounce">
+                    <svg className="mx-auto w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"></path>
+                    </svg>
+                  </div>
                 </div>
               )}
             </div>
+            
+            {/* Previous conversation summary */}
+            {conversationHistory.length > 2 && (
+              <div className="p-4 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">会話の履歴:</h3>
+                <div className="max-h-48 overflow-y-auto">
+                  {conversationHistory.slice(0, -2).map((message, index) => (
+                    <div key={index} className="py-1 px-2 text-sm">
+                      <span className={`font-medium ${message.role === 'assistant' ? 'text-indigo-600' : 'text-blue-600'}`}>
+                        {message.role === 'assistant' ? 'AI: ' : 'あなた: '}
+                      </span>
+                      <span className="text-gray-700">
+                        {message.content.length > 100 
+                          ? message.content.substring(0, 100) + '...' 
+                          : message.content}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
 
-      {/* Countdown Modal */}
-      {showModal && countdown !== null && (
-        <Modal 
-          onClose={() => {}}
-          closeOnOutsideClick={false}
-          size="lg"
-        >
-          <div className="p-10 flex flex-col items-center justify-center">
-            <h2 className="text-2xl font-bold mb-6">Interview will begin in...</h2>
-            <div className="text-6xl font-bold text-blue-600 mb-8">
-              {countdown}
-            </div>
-            <p className="text-gray-600">Prepare yourself. Remember to speak clearly.</p>
-          </div>
-        </Modal>
-      )}
-      
       {/* Feedback Modal */}
       {interviewEnded && feedbackText && (
         <Modal
@@ -637,9 +841,9 @@ export const VideoInterviewScreen: React.FC = () => {
           size="lg"
         >
           <div className="p-8">
-            <h2 className="text-2xl font-bold mb-4">Interview Complete</h2>
+            <h2 className="text-2xl font-bold mb-4">面接完了</h2>
             <div className="mb-6">
-              <h3 className="text-lg font-medium mb-2">Feedback</h3>
+              <h3 className="text-lg font-medium mb-2">フィードバック</h3>
               <p className="text-gray-700">{feedbackText}</p>
             </div>
             <div className="flex justify-end">
@@ -647,7 +851,7 @@ export const VideoInterviewScreen: React.FC = () => {
                 onClick={() => navigate('/dashboard')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Return to Dashboard
+                ダッシュボードに戻る
               </button>
             </div>
           </div>
