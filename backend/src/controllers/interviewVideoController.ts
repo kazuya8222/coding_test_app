@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import InterviewSession, { IMessage } from '../models/InterviewSession';
 import Problem from '../models/Problem';
-import User from '../models/User';
 import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
@@ -92,7 +91,7 @@ export const addInterviewMessage = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Interview not found' });
     }
 
-    if (interview.user_id.toString() !== req.user._id.toString()) {
+    if (interview.user_id.toString() !== (req as any).user._id.toString()) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -239,7 +238,7 @@ export const saveVideoRecording = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Interview not found' });
     }
 
-    if (interview.user_id.toString() !== req.user._id.toString()) {
+    if (interview.user_id.toString() !== (req as any).user._id.toString()) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -269,7 +268,7 @@ export const completeInterview = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Interview not found' });
     }
 
-    if (interview.user_id.toString() !== req.user._id.toString()) {
+    if (interview.user_id.toString() !== (req as any).user._id.toString()) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -379,7 +378,7 @@ export const getInterviewResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Check if user is authorized to view this interview
-    if (interview.user_id._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (interview.user_id._id.toString() !== (req as any).user._id.toString() && (req as any).user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 

@@ -10,8 +10,8 @@ router.post('/', async (req: Request, res: Response) => {
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'あなたは優秀な面接官です。' },
-        { role: 'user', content: `候補者の回答：「${userAnswer}」\nこの回答をさらに深掘りするための質問を一つだけ日本語で考えてください。` }
+        { role: 'system', content: 'あなたは優秀な面接官です。',name: 'system' },
+        { role: 'user', content: `候補者の回答：「${userAnswer}」\nこの回答をさらに深掘りするための質問を一つだけ日本語で考えてください。`,name: 'user' }
       ],
       temperature: 0.7,
     }, {
