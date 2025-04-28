@@ -3,6 +3,7 @@ import { Response as NodeResponse } from 'express-serve-static-core';
 import axios from 'axios';
 const router = express.Router();
 
+
 router.post('/', async (req: Request, res: NodeResponse) => {
   const { message } = req.body;
 
@@ -26,4 +27,4 @@ router.post('/', async (req: Request, res: NodeResponse) => {
   }
 });
 
-module.exports = router;
+export default router;

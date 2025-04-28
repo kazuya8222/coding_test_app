@@ -74,7 +74,7 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'サーバーエラーが発生しました' });
   }
 };
-export const getProfile = async (req: Request, res: Response) => {
+export const getProfile = async (req: Request & { user: { userId: string } }, res: Response) => {
   try {
     const user = await User.findById(req.user.userId).select('-password_hash');
     if (!user) {
