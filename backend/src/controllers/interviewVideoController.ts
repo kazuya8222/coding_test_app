@@ -30,12 +30,12 @@ if (!fs.existsSync(VIDEO_DIR)) {
   fs.mkdirSync(VIDEO_DIR, { recursive: true });
 }
 
-interface MessageRequest {
-  speaker: 'user' | 'ai';
-  message: string;
-  timestamp?: Date;
-  audio_data?: string; // base64 encoded audio data
-}
+// interface MessageRequest {
+//   speaker: 'user' | 'ai';
+//   message: string;
+//   timestamp?: Date;
+//   audio_data?: string; // base64 encoded audio data
+// }
 
 /**
  * Get problem details

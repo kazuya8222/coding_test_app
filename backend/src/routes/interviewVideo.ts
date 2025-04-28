@@ -13,7 +13,7 @@ import {
   completeInterview,
   getInterviewResults
 } from '../controllers/interviewVideoController';
-
+import { RequestHandler } from 'express';
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -57,24 +57,24 @@ router.use(authenticateToken);
 router.get('/:id', getProblemDetails);
 
 // Start a video interview
-router.post('/:id/start', startVideoInterview);
+router.post('/:id/start', startVideoInterview as unknown as RequestHandler);
 
 // Add messages to the interview
-router.post('/:id/message', addInterviewMessage);
+router.post('/:id/message', addInterviewMessage as unknown as RequestHandler);
 
 // Process audio for transcription
-router.post('/process-audio', upload.single('audio'), processAudio);
+router.post('/process-audio', upload.single('audio'), processAudio as unknown as RequestHandler);
 
 // Generate AI response
-router.post('/generate-response', generateAIResponse);
+router.post('/generate-response', generateAIResponse as unknown as RequestHandler);
 
 // Save video recording
-router.post('/:id/recording', upload.single('video'), saveVideoRecording);
+router.post('/:id/recording', upload.single('video'), saveVideoRecording as unknown as RequestHandler);
 
 // Complete the interview and generate feedback
-router.post('/:id/complete', completeInterview);
+router.post('/:id/complete', completeInterview as unknown as RequestHandler);
 
 // Get detailed interview results
-router.get('/:id/results', getInterviewResults);
+router.get('/:id/results', getInterviewResults as unknown as RequestHandler);
 
 export default router;
